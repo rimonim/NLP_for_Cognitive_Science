@@ -128,7 +128,7 @@ d1 <- d1 %>%
          prevtfidfsum_log_s = (prevtfidfsum_log-mean(prevtfidfsum_log, na.rm = T))/sd(prevtfidfsum_log, na.rm = T))
 ```
 
-##Length of Previous Turn
+## Length of Previous Turn
 
 I have already theorized that the likelihood of a given Builder turn being a repair initiation is increased by the need for clarification of previous turns. Are there certain types of instructions that need to be clarified more often? How about long and complicated ones?
 
