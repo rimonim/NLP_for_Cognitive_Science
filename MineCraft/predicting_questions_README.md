@@ -134,3 +134,10 @@ I have already theorized that the likelihood of a given Builder turn being a rep
 
 Here's a quick and dirty graph of repair against length of the previous turn:
 
+![Repair X Length of Previous Turn](figures/minecraft1.png)
+
+Looks promising! We might do a bit better if, rather than counting the number of characters, we had a measure more closely related to how much information is being conveyed. TF-IDF (Term Frequency * Inverse Document Frequency) fits the bill. 
+
+![Repair X Length of Previous Turn](figures/minecraft2.png)
+
+
