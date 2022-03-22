@@ -44,8 +44,7 @@ minecraftcorpusdf %>%
   filter(repair == TRUE) %>%
   select(text) %>%
   sample_n(10)
-```
-```
+  
 #> 1785    like that?
 #> 4312    like so? or like that?
 #> 14821   Are they on the ground?
@@ -57,3 +56,11 @@ minecraftcorpusdf %>%
 #> 12521   Facing towards the middle?
 #> 2951    is this correct?
 ```
+Even without looking at context, it seems clear at a glance that all but line 1571 here are indeed repairs.
+Time to look at a few predictor variables.
+
+##Length of Previous Turn
+I have already theorized that the likelihood of a given Builder turn being a repair initiation is increased by the need for clarification of previous turns. Are there certain types of instructions that need to be clarified more often? How about long and complicated ones?
+
+Here's a quick and dirty graph of repair against length of the previous turn:
+
