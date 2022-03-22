@@ -38,3 +38,22 @@ For these reasons, and since I have no way of identifying true repair iniitation
 minecraftcorpusdf %>% mutate(repair = questionmark & role == "B")
 ```
 
+To convince you that almost all Builder questions in the corpus really are repair initiations, here are 10 randomly selected repairs:
+```r
+minecraftcorpusdf %>%
+  filter(repair == TRUE) %>%
+  select(text) %>%
+  sample_n(10)
+```
+```
+#> 1785    like that?
+#> 4312    like so? or like that?
+#> 14821   Are they on the ground?
+#> 15121   here?
+#> 628     like that?
+#> 3642    ooooh like this?
+#> 1571    it might be easier to describe all one color? then build from there?
+#> 182     is the purple supposed to be on the third level? i think i could make it float..
+#> 12521   Facing towards the middle?
+#> 2951    is this correct?
+```
