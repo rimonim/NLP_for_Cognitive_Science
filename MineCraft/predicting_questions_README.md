@@ -91,7 +91,7 @@ dagify(U ~ C,
 ```
 ![? -> Builder Responds -> Probability of Repair -> Question Mark at End](figures/minecraft5.png)
 
-`as yet undiscussed predictors` predict whether or not the Builder will respond to an instruction from the Architect. Whether or not the Builder responds predicts whether the response will be a repair initiation (if the Builder doesn't respond there's zero probability of the response being anything). Finally, the responses status as a repair initiation influences our proxy variable, `the presence of a question mark`.
+`As yet undiscussed variables` predict `whether or not the Builder will respond to an instruction from the Architect`. `Whether or not the Builder responds` predicts `whether the response will be a repair initiation` (if the Builder doesn't respond there's zero probability of the response being anything). Finally, `the response's status as a repair initiation` influences our proxy variable, `the presence of a question mark`.
 
 All of this means that my inital stategy would probably wash out any effect of predictors on repair, since [we would already be stratifying by whether the Builder responds](https://youtu.be/YrwL6t0kW2I?t=864). I think the simplest way to solve this problem is to use Architect turns as cases and predict whether or not the next turn will be a Builder repair. Sometimes the next turn will be another Architect turn (when Builder did not respond), and sometimes it will be a non-repair Builder turn.
 
@@ -100,56 +100,58 @@ Time to code a few predictor variables.
 ```r
 # Orthographic Length of Previous Turn
 # Mean TF-IDF of previous turn (word-fanciness? information density?)
-# Total TF-IDF of previous turn (lexical complexity? information?)
+# Sum TF-IDF of previous turn (lexical complexity? information?)
 # Turns since last question asked
-# Total characters since last question asked
 
-d1 <- collapseturns(minecraftcorpusdf)
-d1$prevlength <- rep(0, nrow(d1))
-d1$prevtfidfmean <- rep(0, nrow(d1))
-d1$prevtfidfsum <- rep(0, nrow(d1))
-d1$charssincerepair <- rep(0, nrow(d1))
+d1 <- convert(minecraftcorpus_tfidf, to = "data.frame") %>% 
+  select(!doc_id) %>%
+  transmute(tfidfsum = rowSums(across())) %>%
+  bind_cols(minecraftcorpusdf) %>%
+  select(!c(file, session)) %>%
+  mutate(repair = grepl("\\?", text) & role == "B",
+         repair_next = NA,
+         length = nchar(text),
+         charssincerepair = 0)
+
 charssincerepair <- 0L
 
 for (n in 2:nrow(d1)) {
-  if(d1$session[n-1L] == d1$session[n]) {
-    d1$prevlength[n] <- d1$length[n-1L]
-    d1$prevtfidfmean[n] <- d1$tfidfmean[n-1L]
-    d1$prevtfidfsum[n] <- d1$tfidfsum[n-1L]
-  }else{
+  if(d1$conversation[n-1L] != d1$conversation[n]) {
     charssincerepair <- 0L
   }
-  d1$charssincerepair[n] <- charssincerepair
   if(d1$repair[n] == TRUE & d1$role[n] == "B"){
     charssincerepair <- 0L
   }
+  d1$charssincerepair[n] <- charssincerepair
   charssincerepair <- charssincerepair + d1$length[n]
+}
+
+for (n in 1:(nrow(d1)-1L)) {
+  if(d1$conversation[n+1L] == d1$conversation[n]) {
+    d1$repair_next[n] <- d1$repair[n+1]
+  }
 }
 
 # Repair as Factor, + Case Index
 d1 <- d1 %>%  
-  mutate(repair  = factor(repair, levels = c(FALSE, TRUE)),
+  mutate(repair_next  = factor(repair_next, levels = c(FALSE, TRUE)),
          case = factor(1:n()))
 
-# Remove first line of each conversation
-# Subset only Builder turns
-# Transform and Standardize variables
 d1 <- d1 %>%
-  filter(turnssincerepair != 0, 
-         prevtfidfsum != 0, 
+  filter(role == "A",
          charssincerepair != 0,
-         role == "B") %>%
+         tfidfsum != 0) %>%
   mutate(charssincerepair_log = log(charssincerepair),
          charssincerepair_log_s = (charssincerepair_log-mean(charssincerepair_log, na.rm = T))/sd(charssincerepair_log, na.rm = T),
-         prevtfidfsum_log = log(prevtfidfsum),
-         prevtfidfsum_log_s = (prevtfidfsum_log-mean(prevtfidfsum_log, na.rm = T))/sd(prevtfidfsum_log, na.rm = T))
+         tfidfsum_log = log(tfidfsum),
+         tfidfsum_log_s = (tfidfsum_log - mean(tfidfsum_log, na.rm = T))/sd(tfidfsum_log, na.rm = T))
 ```
 
 ## Length of Previous Turn
 
 I have already theorized that the likelihood of a given Builder turn being a repair initiation is increased by the need for clarification of previous turns. Are there certain types of instructions that need to be clarified more often? How about long and complicated ones?
 
-Here's a quick and dirty graph of repair against `length of the previous turn`, with `repair` formaatted as numeric and a [Loess](https://en.wikipedia.org/wiki/Local_regression) line running between No and Yes:
+Here's a quick and dirty graph of repair against `length of the previous turn`, with `repair` formatted as numeric and a [Loess](https://en.wikipedia.org/wiki/Local_regression) line running between No and Yes:
 
 ```r
 library(ggbeeswarm)
@@ -266,6 +268,7 @@ prevtfidf_mod_fitted <-
   mutate(prevtfidf_log = prevtfidf_log_s * sd(d1$prevtfidfsum_log) + mean(d1$prevtfidfsum_log),
          prevtfidf = exp(prevtfidf_log_s * sd(d1$prevtfidfsum_log) + mean(d1$prevtfidfsum_log)))
 
+library(ggbeeswarm)
 
 prevtfidf_mod_postpredict <- prevtfidf_mod_fitted %>%
   ggplot(aes(x = prevtfidf)) +
