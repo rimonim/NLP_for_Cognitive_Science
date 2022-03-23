@@ -2,7 +2,8 @@
   #> convdf: A dataframe including columns named "participant", "conversation", and "text"
   #> aggregate: A character vector of the names of additional columns to aggregate
   #> method: A character vector specifying the method of aggregation for each column in `aggregate`. 
-     #> Options: "sum", "mean", "any". Anything else will default to keeping the value of the second turn.
+     # Options: "sum", "mean", "any"
+     # Anything else will default to keeping the value of the second turn.
   #> dropcols: Should the rest of the columns in `convdf` be dropped?
 
 collapseturns <- function(convdf, aggregate, method, dropcols = TRUE) {
