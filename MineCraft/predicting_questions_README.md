@@ -223,3 +223,56 @@ print(prevlength_mod)
 ## and Tail_ESS are effective sample size measures, and Rhat is the potential
 ## scale reduction factor on split chains (at convergence, Rhat = 1).
 ```
+
+Now I can sample the posteriors and see what the models thinks.
+
+```r
+# Sample Prior and Posterior
+prevtfidf_mod_priors <- as_draws_df(prevtfidf_mod, c("prior_Intercept", "prior_b"))[1:100,] %>%
+  as_tibble() %>%
+  mutate(n = factor(1:100)) %>%
+  expand(nesting(n, prior_Intercept, prior_b), x_log_s  = seq(from = -2.5, to = 3, length.out = 200)) %>%
+  mutate(p = inv_logit_scaled(prior_Intercept+prior_b*x_log_s),
+         x_log = x_log_s * sd(d2$prevtfidfsum_log) + mean(d2$prevtfidfsum_log),
+         x = exp(x_log))
+
+n_iter <- 50
+prevtfidf_mod_fitted <-
+  fitted(prevtfidf_mod,
+         newdata  = tibble(prevtfidfsum_log_s = seq(from = -2.5, to = 3, length.out = 200)),
+         summary  = F,
+         nsamples = n_iter) %>% 
+  as_tibble() %>%
+  mutate(iter = 1:n_iter) %>% 
+  pivot_longer(-iter) %>% 
+  mutate(prevtfidf_log_s = rep(seq(from = -2.5, to = 3, length.out = 200), times = n_iter)) %>% 
+  mutate(prevtfidf_log = prevtfidf_log_s * sd(d2$prevtfidfsum_log) + mean(d2$prevtfidfsum_log),
+         prevtfidf = exp(prevtfidf_log_s * sd(d2$prevtfidfsum_log) + mean(d2$prevtfidfsum_log)))
+
+
+prevtfidf_mod_postpredict <- prevtfidf_mod_fitted %>%
+  ggplot(aes(x = prevtfidf)) +
+    geom_hline(yintercept = .5, color = "red") +
+    geom_line(aes(y = value, group = iter), color = "blue", alpha = .1) +
+    geom_line(data = prevtfidf_mod_priors,
+              aes(x, p, group = n), color = "black", alpha = .08) + 
+    geom_quasirandom(data = d2,
+                     aes(x = prevtfidfsum,
+                         y = as.integer(repair)-1),
+                     alpha = 1/10,
+                     groupOnX = F,
+                     width = 1/10,
+                     method = "pseudorandom",
+                     varwidth = T) +
+    scale_x_continuous(trans = "log10", minor_breaks = seq(10, 100, by = 10)) +
+    scale_y_continuous(breaks = c(0, .25, .5, .75, 1),
+                       labels = c("No", .25, .5, .75, "Yes")) +
+    labs(title = "Data with Prior and Posterior Predictions",
+         y = "Question", 
+         x = "Sum TF-IDF of Previous Turn (Log Scale)") +
+    theme_minimal()
+
+prevtfidf_mod_postpredict
+```
+
+!(TF-IDF Model Data with Prior and Posterior Predictions)(figures/minecraft3.png
