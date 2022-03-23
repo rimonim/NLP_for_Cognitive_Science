@@ -132,11 +132,30 @@ d1 <- d1 %>%
 
 I have already theorized that the likelihood of a given Builder turn being a repair initiation is increased by the need for clarification of previous turns. Are there certain types of instructions that need to be clarified more often? How about long and complicated ones?
 
-Here's a quick and dirty graph of repair against length of the previous turn:
+Here's a quick and dirty graph of repair against length of the previous turn, with repair formaatted as numeric and a [Loess](https://en.wikipedia.org/wiki/Local_regression) line running between No and Yes:
+
+```r
+library(ggbeeswarm)
+
+d1 %>%
+  ggplot(aes(prevlength, (as.numeric(repair)-1))) +
+    geom_quasirandom(method = "pseudorandom", 
+                     width = .2,
+                     groupOnX = F, 
+                     alpha = .1, 
+                     varwidth = T) +
+    geom_smooth() +
+    scale_x_continuous(trans = "log10") +
+    scale_y_continuous(breaks = c(0, .25, .5, .75, 1),
+                       labels = c("No", .25, .5, .75, "Yes")) +
+    labs(x = "Length of Previous Turn (characters, log scale)",
+         y = "Question") +
+    theme_minimal()
+```
 
 ![Repair X Length of Previous Turn](figures/minecraft1.png)
 
-Looks promising! We might do a bit better if, rather than counting the number of characters, we had a measure more closely related to how much information is being conveyed. TF-IDF (Term Frequency * Inverse Document Frequency) fits the bill. 
+Looks promising! It's hard to tell just by looking at the data points, but the regression line seems to think that longer previous turns are associated wih more repairs (the line goes the opposite direction at either extreme on the x axis, but I'm not taking that very seriously - the standard error in grey shows that [the model is not taking it too seriously either](https://youtu.be/QiHKdvAbYII?t=4230)). We might do a bit better if, rather than counting the number of characters, we had a measure more closely related to how much information is being conveyed. TF-IDF (Term Frequency * Inverse Document Frequency) fits the bill. 
 
 ![Repair X Length of Previous Turn](figures/minecraft2.png)
 
