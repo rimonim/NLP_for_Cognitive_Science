@@ -57,7 +57,59 @@ minecraftcorpusdf %>%
 #> 2951    is this correct?
 ```
 Even without looking at context, it seems clear at a glance that all but line 1571 here are indeed repairs.
-Time to look at a few predictor variables.
+
+## How to Predict Repair
+Before I start exploring predictor variables, I need to figure out how to model the probability of repair. My first instinct was just to subset out all of the Builder turns and model whether of not they are repairs. There's a fatal flaw with this plan though: the natural alternative to _initiating repair_ is probably not _initiating something other than repair_. The alternative is more likely to be _not saying anything_. In other words, we only have data about whether or not texts the Builder _sent_ were repairs. We have no data about texts the Builder _didn't send_. 
+
+I'll draw that more formally as a DAG:
+```r
+library(ggdag)
+# Length -> TF-IDF Sum -> Probability of Repair -> Question Mark at End
+# Turns since Last Repair -> Probability of Repair -> Question Mark at End
+dag_coords_0 <-
+  tibble(name = c("C", "U", "R", "Q"),
+         x    = c(1, 2, 3, 4),
+         y    = c(2, 2, 2, 2))
+
+dagify(U ~ C,
+       R ~ U,
+       Q ~ R,
+       coords = dag_coords_0) %>%
+  dag_label(labels = c("C" = "?", 
+                       "U" = str_wrap("Builder Responds", 10), 
+                       "R" = "Repair", 
+                       "Q" = str_wrap("Question Mark", 10))) %>%
+  ggplot(aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_dag_point(aes(color = name == "R"),
+                 alpha = 1/2, size = 20, show.legend = F) +
+  geom_dag_text(aes(label = label, size = name == "C"), color = "black") +
+  scale_x_continuous(NULL, breaks = NULL, expand = c(.1, .1)) +
+  scale_y_continuous(NULL, breaks = NULL, expand = c(.1, .1)) +
+  scale_size_manual(guide = NULL, values = c(2.5, 5)) +
+  geom_dag_edges() +
+  theme_dag()
+```
+!(? -> Builder Responds -> Probability of Repair -> Question Mark at End)[figures/minecraft5.png]
+
+`as yet undiscussed predictors` predict whether or not the Builder will respond to an instruction from the Architect. Whether or not the Builder responds predicts whether the response will be a repair initiation (if the Builder doesn't respond there's zero probability of the response being anything). Finally, the responses status as a repair initiation influences our proxy variable, `the presence of a question mark`.
+
+All of this means that my inital stategy would probably wash out any effect of predictors on repair, since [we would already be stratifying by whether the Builder responds](https://youtu.be/YrwL6t0kW2I?t=864). Since we can't measure the absence of repair, I think the best solution is to collapse adjacent turns by the same participant so that the Builder always speaks after the Architect, and vice versa. 
+
+For example, this conversation:
+
+> _(2) **Builder:** Now what?_
+> 
+> _(3) **Architect:** cool! extend the top purple block to a row of 5 purple blocks_
+> 
+> _(4) **Architect:** so like an upside down "L"__
+
+...would turn into this:
+
+> _(2) **Builder:** Now what?_
+> 
+> _(3) **Architect:** cool! extend the top purple block to a row of 5 purple blocks so like an upside down "L"_
+
+This was [Duran & Paxton's (2019)](https://doi.org/10.1037/met0000206) approach to a similar problem. It ensures that there will always be a next-turn Builder response of some sort. If the Builder types nothing, the Architect's next turn will just get smushed onto his last one. This also has the helpful effect of eliminating variability in the frequency with which people like to press "send" while texting. The only upshot is that we can no longer understand one case as one turn - it might be a few.
 
 ```r
 collapseturns <- function(convdf, aggregate, method, dropcols = TRUE) {
@@ -87,9 +139,11 @@ collapseturns <- function(convdf, aggregate, method, dropcols = TRUE) {
     convdf
   }
 }
+```
 
+Time to look at a few predictor variables.
 
-#### Additional Variables
+```r
 # Orthographic Length of Previous Turn
 # Mean TF-IDF of previous turn (word-fanciness? information density?)
 # Total TF-IDF of previous turn (lexical complexity? information?)
