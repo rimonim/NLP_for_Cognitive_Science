@@ -275,4 +275,4 @@ prevtfidf_mod_postpredict <- prevtfidf_mod_fitted %>%
 prevtfidf_mod_postpredict
 ```
 
-!(TF-IDF Model Data with Prior and Posterior Predictions)(figures/minecraft3.png
+![TF-IDF Model Data with Prior and Posterior Predictions](figures/minecraft3.png)
