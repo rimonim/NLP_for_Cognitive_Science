@@ -81,13 +81,10 @@ collapseturns <- function(convdf) {
 # Total characters since last question asked
 
 d1 <- collapseturns(minecraftcorpusdf)
-
 d1$prevlength <- rep(0, nrow(d1))
 d1$prevtfidfmean <- rep(0, nrow(d1))
 d1$prevtfidfsum <- rep(0, nrow(d1))
-d1$turnssincerepair <- rep(0, nrow(d1))
 d1$charssincerepair <- rep(0, nrow(d1))
-turnssincerepair <- 0L
 charssincerepair <- 0L
 
 for (n in 2:nrow(d1)) {
@@ -96,16 +93,12 @@ for (n in 2:nrow(d1)) {
     d1$prevtfidfmean[n] <- d1$tfidfmean[n-1L]
     d1$prevtfidfsum[n] <- d1$tfidfsum[n-1L]
   }else{
-    turnssincerepair <- 0L
     charssincerepair <- 0L
   }
-  d1$turnssincerepair[n] <- turnssincerepair
   d1$charssincerepair[n] <- charssincerepair
   if(d1$repair[n] == TRUE & d1$role[n] == "B"){
-    turnssincerepair <- 0L
     charssincerepair <- 0L
   }
-  turnssincerepair <- turnssincerepair + 1L
   charssincerepair <- charssincerepair + d1$length[n]
 }
 
@@ -122,8 +115,8 @@ d1 <- d1 %>%
          prevtfidfsum != 0, 
          charssincerepair != 0,
          role == "B") %>%
-  mutate(charssincerepair_s = (charssincerepair-mean(charssincerepair, na.rm = T))/sd(charssincerepair, na.rm = T),
-         turnssincerepair_s = (turnssincerepair-mean(turnssincerepair, na.rm = T))/sd(turnssincerepair, na.rm = T),
+  mutate(charssincerepair_log = log(charssincerepair),
+         charssincerepair_log_s = (charssincerepair_log-mean(charssincerepair_log, na.rm = T))/sd(charssincerepair_log, na.rm = T),
          prevtfidfsum_log = log(prevtfidfsum),
          prevtfidfsum_log_s = (prevtfidfsum_log-mean(prevtfidfsum_log, na.rm = T))/sd(prevtfidfsum_log, na.rm = T))
 ```
@@ -282,4 +275,36 @@ The faint grey lines are 100 samples from the prior distribution. In blue are 50
 The posterior predictions look like a straight line on the logarithmic scale - for very short, simple instructions from the Architect, the Builder's response is most likely not to be a repair. As total TF-IDF goes up, the probability of repair does too, at first rapidly, them more slowly.
 
 ## Time Since Last Repair
+
+As described in [Dingemanse et al. (2015)](https://doi.org/10.1371/journal.pone.0136100.g002), another predictor of repair is the time elapsed since the last repair. People don't tend to initiate repair twice in a row. In lieu of using actual timestamps, I'll use the total number of characters typed as a proxy for time elapsed. I'll use the same priors as before.
+
+```r
+charssincerepair_mod <- brm(
+  repair ~ 1 + charssincerepair_log_s,
+  data = d1,
+  family = bernoulli,
+  prior = c(prior(normal(-1, 1), class = Intercept),
+            prior(normal(0, 1), class = b)),
+  sample_prior = "yes")
+```
+```r
+print(charssincerepair_mod)
+```
+```
+##  Family: bernoulli 
+##   Links: mu = logit 
+## Formula: repair ~ 1 + charssincerepair_log_s 
+##    Data: d1 (Number of observations: 3564) 
+##   Draws: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
+##          total post-warmup draws = 4000
+## 
+## Population-Level Effects: 
+##                        Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## Intercept                  0.07      0.03     0.01     0.14 1.00     3632     2499
+## charssincerepair_log_s     0.16      0.03     0.09     0.22 1.00     3207     2690
+## 
+## Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
+## and Tail_ESS are effective sample size measures, and Rhat is the potential
+## scale reduction factor on split chains (at convergence, Rhat = 1).
+```
 
