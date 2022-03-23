@@ -110,7 +110,7 @@ For example, this conversation:
 > _(3) **Architect:** cool! extend the top purple block to a row of 5 purple blocks so like an upside down "L"_
 
 This was [Duran & Paxton's (2019)](https://doi.org/10.1037/met0000206) approach to a similar problem. It ensures that there will always be a next-turn Builder response of some sort. If the Builder types nothing, the Architect's next turn will just get smushed onto his last one. This also has the helpful effect of eliminating variability in the frequency with which people like to press "send" while texting. The only upshot is that we can no longer understand one case as one turn - it might be a few.
-
+ 
 ```r
 collapseturns <- function(convdf, aggregate, method, dropcols = TRUE) {
   trashrows <- c()
