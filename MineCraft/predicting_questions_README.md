@@ -233,7 +233,7 @@ prevtfidf_mod_priors <- as_draws_df(prevtfidf_mod, c("prior_Intercept", "prior_b
   mutate(n = factor(1:100)) %>%
   expand(nesting(n, prior_Intercept, prior_b), x_log_s  = seq(from = -2.5, to = 3, length.out = 200)) %>%
   mutate(p = inv_logit_scaled(prior_Intercept+prior_b*x_log_s),
-         x_log = x_log_s * sd(d2$prevtfidfsum_log) + mean(d2$prevtfidfsum_log),
+         x_log = x_log_s * sd(d1$prevtfidfsum_log) + mean(d1$prevtfidfsum_log),
          x = exp(x_log))
 
 n_iter <- 50
@@ -246,8 +246,8 @@ prevtfidf_mod_fitted <-
   mutate(iter = 1:n_iter) %>% 
   pivot_longer(-iter) %>% 
   mutate(prevtfidf_log_s = rep(seq(from = -2.5, to = 3, length.out = 200), times = n_iter)) %>% 
-  mutate(prevtfidf_log = prevtfidf_log_s * sd(d2$prevtfidfsum_log) + mean(d2$prevtfidfsum_log),
-         prevtfidf = exp(prevtfidf_log_s * sd(d2$prevtfidfsum_log) + mean(d2$prevtfidfsum_log)))
+  mutate(prevtfidf_log = prevtfidf_log_s * sd(d1$prevtfidfsum_log) + mean(d1$prevtfidfsum_log),
+         prevtfidf = exp(prevtfidf_log_s * sd(d1$prevtfidfsum_log) + mean(d1$prevtfidfsum_log)))
 
 
 prevtfidf_mod_postpredict <- prevtfidf_mod_fitted %>%
@@ -256,7 +256,7 @@ prevtfidf_mod_postpredict <- prevtfidf_mod_fitted %>%
     geom_line(aes(y = value, group = iter), color = "blue", alpha = .1) +
     geom_line(data = prevtfidf_mod_priors,
               aes(x, p, group = n), color = "black", alpha = .08) + 
-    geom_quasirandom(data = d2,
+    geom_quasirandom(data = d1,
                      aes(x = prevtfidfsum,
                          y = as.integer(repair)-1),
                      alpha = 1/10,
@@ -275,4 +275,8 @@ prevtfidf_mod_postpredict <- prevtfidf_mod_fitted %>%
 prevtfidf_mod_postpredict
 ```
 
+The faint grey lines are 100 samples from the prior distribution. In blue are 50 samples from the posterior. 
+
 ![TF-IDF Model Data with Prior and Posterior Predictions](figures/minecraft3.png)
+
+The posterior predictions look like a straight line on the logarithmic scale - for very short, simple instructions from the Architect, the Builder's response is most likely not to be a repair. As total TF-IDF goes up, the probability of repair does too, at first rapidly, them more slowly.
