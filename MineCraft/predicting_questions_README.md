@@ -165,4 +165,61 @@ This looks similar to the first one. Indeed, `Previous turn TF-IDF Sum` and `Pre
 
 ### Bayesian Modeling
 
+I'll start by simulating reasonable priors. I'll let the slope be positive or negative. About half of Builder turns are repairs, so I'll keep the means at zero. After playing around with the parameters a bit, I settled on this:
 
+```r
+# Simulating Reasonable Priors
+d1 %>%
+  group_by(repair) %>%
+  summarise(perc = 100*n()/nrow(.))   # 51.9% of collapsed builder turns are repairs
+
+priors <- 
+  tibble(n = 1:50,
+         a = rnorm(50, 0, 1),
+         b = rnorm(50, 0, 1)) %>% 
+  expand(nesting(n, a, b), x = seq(from = -3, to = 3, length.out = 200)) %>% 
+  mutate(p = inv_logit_scaled(a+b*x)) %>%
+  arrange(n) %>%
+  mutate(n = factor(n)) 
+priors %>%
+  ggplot(aes(x, p, group = n)) +
+  geom_line(alpha = .5)
+```
+
+Let's set up the model.
+
+```r
+library(brms)
+library(tidybayes)
+
+prevtfidf_mod <- brm(
+  repair ~ 1 + prevtfidfsum_log_s,
+  data = d1,
+  family = bernoulli,
+  prior = c(prior(normal(0, 1), class = Intercept),
+            prior(normal(0, 1), class = b)),
+  sample_prior = "yes")
+```
+
+Here's the model summary:
+
+```r
+print(prevlength_mod)
+```
+```
+## Family: bernoulli 
+##  Links: mu = logit 
+## Formula: repair ~ 1 + prevlength_log_s 
+##   Data: d1 (Number of observations: 3565) 
+##  Draws: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
+##         total post-warmup draws = 4000
+##
+## Population-Level Effects: 
+##                 Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## Intercept            0.07      0.03     0.01     0.14 1.00     3310     2707
+## prevlength_log_s     0.21      0.03     0.14     0.27 1.00     3393     2670
+##
+## Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
+## and Tail_ESS are effective sample size measures, and Rhat is the potential
+## scale reduction factor on split chains (at convergence, Rhat = 1).
+```
