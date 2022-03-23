@@ -132,7 +132,7 @@ d1 <- d1 %>%
 
 I have already theorized that the likelihood of a given Builder turn being a repair initiation is increased by the need for clarification of previous turns. Are there certain types of instructions that need to be clarified more often? How about long and complicated ones?
 
-Here's a quick and dirty graph of repair against length of the previous turn, with repair formaatted as numeric and a [Loess](https://en.wikipedia.org/wiki/Local_regression) line running between No and Yes:
+Here's a quick and dirty graph of repair against `length of the previous turn`, with `repair` formaatted as numeric and a [Loess](https://en.wikipedia.org/wiki/Local_regression) line running between No and Yes:
 
 ```r
 library(ggbeeswarm)
@@ -155,8 +155,14 @@ d1 %>%
 
 ![Repair X Length of Previous Turn](figures/minecraft1.png)
 
-Looks promising! It's hard to tell just by looking at the data points, but the regression line seems to think that longer previous turns are associated wih more repairs (the line goes the opposite direction at either extreme on the x axis, but I'm not taking that very seriously - the standard error in grey shows that [the model is not taking it too seriously either](https://youtu.be/QiHKdvAbYII?t=4230)). We might do a bit better if, rather than counting the number of characters, we had a measure more closely related to how much information is being conveyed. TF-IDF (Term Frequency * Inverse Document Frequency) fits the bill. 
+Looks promising! It's hard to tell just by looking at the data points, but the regression line seems to think that longer previous turns are associated wih more repairs (the line goes the opposite direction at either extreme on the x axis, but I'm not taking that very seriously - the standard error grey area is wide and [the model is stupid](https://youtu.be/QiHKdvAbYII?t=4230)). 
+
+We might do a bit better if, rather than counting the number of characters, we had a measure more closely related to how much information is being conveyed. TF-IDF (Term Frequency * Inverse Document Frequency) fits the bill. The TF-IDF of a word describes how rare it is in the whole corpus vs. how common it is in its own turn. Presumably, rarer words are less predictable and therefore more informative and more confusing. The `sum of TF-IDF scores` of all words in an turn should tell us something about how much new semantic material is included in each turn.
 
 ![Repair X Length of Previous Turn](figures/minecraft2.png)
+
+This looks similar to the first one. Indeed, `Previous turn TF-IDF Sum` and `Previous turn length` are correlated in the corpus at r = .991. Nevertheless, I'm going to stick with TF-IDF Sum because it makes more sense to me as a theoretical predictor.
+
+### Bayesian Modeling
 
 
