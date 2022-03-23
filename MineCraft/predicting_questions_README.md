@@ -155,7 +155,7 @@ d1 %>%
 
 ![Repair X Length of Previous Turn](figures/minecraft1.png)
 
-Looks promising! It's hard to tell just by looking at the data points, but the regression line seems to think that longer previous turns are associated wih more repairs (the line goes the opposite direction at either extreme on the x axis, but I'm not taking that very seriously - the standard error grey area is wide and [the model is stupid](https://youtu.be/QiHKdvAbYII?t=4230)). 
+Looks promising! It's hard to tell just by looking at the data points, but the regression line seems to think that longer previous turns are associated wih more repairs (the line goes the opposite direction at the extremes on the x axis, but I'm not taking that very seriously - the standard error grey area is wide and [the model is stupid](https://youtu.be/QiHKdvAbYII?t=4230)). 
 
 We might do a bit better if, rather than counting the number of characters, we had a measure more closely related to how much information is being conveyed. TF-IDF (Term Frequency * Inverse Document Frequency) fits the bill. The TF-IDF of a word describes how rare it is in the whole corpus vs. how common it is in its own turn. Presumably, rarer words are less predictable and therefore more informative and more confusing. The `sum of TF-IDF scores` of all words in an turn should tell us something about how much new semantic material is included in each turn.
 
