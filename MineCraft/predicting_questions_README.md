@@ -60,18 +60,34 @@ Even without looking at context, it seems clear at a glance that all but line 15
 Time to look at a few predictor variables.
 
 ```r
-collapseturns <- function(convdf) {
+collapseturns <- function(convdf, aggregate, method, dropcols = TRUE) {
   trashrows <- c()
   for(row in 2:nrow(convdf)){
     if(convdf[row, "participant"] == convdf[row - 1L, "participant"] & 
        convdf[row, "conversation"] == convdf[row - 1L, "conversation"]){
       convdf[row, "text"] <- paste(convdf[row - 1L, "text"], convdf[row, "text"])
+      for(col in 1:length(aggregate)){
+        if(method[col] == "sum"){
+          convdf[row, aggregate[col]] <- convdf[row-1L, aggregate[col]] + convdf[row, aggregate[col]]
+        }
+        if(method[col] == "mean"){
+          convdf[row, aggregate[col]] <- mean(c(convdf[row-1L, aggregate[col]], convdf[row, aggregate[col]]), na.rm = T)
+        }
+        if(method[col] == "any"){
+          convdf[row, aggregate[col]] <- any(convdf[row-1L, aggregate[col]], convdf[row, aggregate[col]])
+        }
+      }
       trashrows <- append(trashrows, row - 1L)
     }
   }
   convdf <- convdf[!(1:nrow(convdf) %in% trashrows), ]
-  convdf
+  if(dropcols){
+    convdf[, c("participant", "conversation", "text", aggregate)]
+  }else{
+    convdf
+  }
 }
+
 
 #### Additional Variables
 # Orthographic Length of Previous Turn
