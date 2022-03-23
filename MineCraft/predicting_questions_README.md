@@ -280,3 +280,6 @@ The faint grey lines are 100 samples from the prior distribution. In blue are 50
 ![TF-IDF Model Data with Prior and Posterior Predictions](figures/minecraft3.png)
 
 The posterior predictions look like a straight line on the logarithmic scale - for very short, simple instructions from the Architect, the Builder's response is most likely not to be a repair. As total TF-IDF goes up, the probability of repair does too, at first rapidly, them more slowly.
+
+## Time Since Last Repair
+
