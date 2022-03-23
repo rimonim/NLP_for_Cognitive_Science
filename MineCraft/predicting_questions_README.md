@@ -59,7 +59,7 @@ minecraftcorpusdf %>%
 Even without looking at context, it seems clear at a glance that all but line 1571 here are indeed repairs.
 
 ## How to Predict Repair
-Before I start exploring predictor variables, I need to figure out how to model the probability of repair. My first instinct was just to subset out all of the Builder turns and model whether of not they are repairs. There's a fatal flaw with this plan though: the natural alternative to _initiating repair_ is probably not _initiating something other than repair_. The alternative is more likely to be _not saying anything_. In other words, we only have data about whether or not texts the Builder _sent_ were repairs. We have no data about texts the Builder _didn't send_. 
+Before I start exploring predictor variables, I need to figure out how to model the probability of repair. My first instinct was use Builder turns as cases and model whether of not they are repairs. There's a fatal flaw with this plan though: the natural alternative to _initiating repair_ is probably not _initiating something other than repair_. The alternative is more likely to be _not saying anything_. In other words, we only have data about whether or not texts the Builder _sent_ were repairs. We have no data about texts the Builder _didn't send_. 
 
 I'll draw that more formally as a DAG:
 ```r
@@ -89,59 +89,13 @@ dagify(U ~ C,
   geom_dag_edges() +
   theme_dag()
 ```
-!(? -> Builder Responds -> Probability of Repair -> Question Mark at End)[figures/minecraft5.png]
+![? -> Builder Responds -> Probability of Repair -> Question Mark at End](figures/minecraft5.png)
 
 `as yet undiscussed predictors` predict whether or not the Builder will respond to an instruction from the Architect. Whether or not the Builder responds predicts whether the response will be a repair initiation (if the Builder doesn't respond there's zero probability of the response being anything). Finally, the responses status as a repair initiation influences our proxy variable, `the presence of a question mark`.
 
-All of this means that my inital stategy would probably wash out any effect of predictors on repair, since [we would already be stratifying by whether the Builder responds](https://youtu.be/YrwL6t0kW2I?t=864). Since we can't measure the absence of repair, I think the best solution is to collapse adjacent turns by the same participant so that the Builder always speaks after the Architect, and vice versa. 
+All of this means that my inital stategy would probably wash out any effect of predictors on repair, since [we would already be stratifying by whether the Builder responds](https://youtu.be/YrwL6t0kW2I?t=864). I think the simplest way to solve this problem is to use Architect turns as cases and predict whether or not the next turn will be a Builder repair. Sometimes the next turn will be another Architect turn (when Builder did not respond), and sometimes it will be a non-repair Builder turn.
 
-For example, this conversation:
-
-> _(2) **Builder:** Now what?_
-> 
-> _(3) **Architect:** cool! extend the top purple block to a row of 5 purple blocks_
-> 
-> _(4) **Architect:** so like an upside down "L"__
-
-...would turn into this:
-
-> _(2) **Builder:** Now what?_
-> 
-> _(3) **Architect:** cool! extend the top purple block to a row of 5 purple blocks so like an upside down "L"_
-
-This was [Duran & Paxton's (2019)](https://doi.org/10.1037/met0000206) approach to a similar problem. It ensures that there will always be a next-turn Builder response of some sort. If the Builder types nothing, the Architect's next turn will just get smushed onto his last one. This also has the helpful effect of eliminating variability in the frequency with which people like to press "send" while texting. The only upshot is that we can no longer understand one case as one turn - it might be a few.
- 
-```r
-collapseturns <- function(convdf, aggregate, method, dropcols = TRUE) {
-  trashrows <- c()
-  for(row in 2:nrow(convdf)){
-    if(convdf[row, "participant"] == convdf[row - 1L, "participant"] & 
-       convdf[row, "conversation"] == convdf[row - 1L, "conversation"]){
-      convdf[row, "text"] <- paste(convdf[row - 1L, "text"], convdf[row, "text"])
-      for(col in 1:length(aggregate)){
-        if(method[col] == "sum"){
-          convdf[row, aggregate[col]] <- convdf[row-1L, aggregate[col]] + convdf[row, aggregate[col]]
-        }
-        if(method[col] == "mean"){
-          convdf[row, aggregate[col]] <- mean(c(convdf[row-1L, aggregate[col]], convdf[row, aggregate[col]]), na.rm = T)
-        }
-        if(method[col] == "any"){
-          convdf[row, aggregate[col]] <- any(convdf[row-1L, aggregate[col]], convdf[row, aggregate[col]])
-        }
-      }
-      trashrows <- append(trashrows, row - 1L)
-    }
-  }
-  convdf <- convdf[!(1:nrow(convdf) %in% trashrows), ]
-  if(dropcols){
-    convdf[, c("participant", "conversation", "text", aggregate)]
-  }else{
-    convdf
-  }
-}
-```
-
-Time to look at a few predictor variables.
+Time to code a few predictor variables.
 
 ```r
 # Orthographic Length of Previous Turn
