@@ -1,7 +1,7 @@
 # Predicting Questions in Dialogue
 
 A sample dialogue from the Minecraft Corpus:
-
+ 
 > _(1) **Architect:** start with a stack of 5 purple blocks in the middle_
 > 
 > __(2) **Builder:** Now what?__
