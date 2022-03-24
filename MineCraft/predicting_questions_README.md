@@ -75,18 +75,17 @@ dagify(U ~ C,
        R ~ U,
        Q ~ R,
        coords = dag_coords_0) %>%
-  dag_label(labels = c("C" = "?", 
+  dag_label(labels = c("C" = "", 
                        "U" = str_wrap("Builder Responds", 10), 
                        "R" = "Repair", 
                        "Q" = str_wrap("Question Mark", 10))) %>%
-  ggplot(aes(x = x, y = y, xend = xend, yend = yend)) +
+  ggplot(aes(x = x, y = y, xend = xend-.1, yend = yend)) +
   geom_dag_point(aes(color = name == "R"),
-                 alpha = 1/2, size = 20, show.legend = F) +
-  geom_dag_text(aes(label = label, size = name == "C"), color = "black") +
+                 alpha = 1/2, size = 30, show.legend = F) +
+  geom_dag_text(aes(label = label), color = "black", size = 4) +
   scale_x_continuous(NULL, breaks = NULL, expand = c(.1, .1)) +
   scale_y_continuous(NULL, breaks = NULL, expand = c(.1, .1)) +
-  scale_size_manual(guide = NULL, values = c(2.5, 5)) +
-  geom_dag_edges() +
+  geom_dag_edges(aes(x = x + .1)) +
   theme_dag()
 ```
 ![? -> Builder Responds -> Probability of Repair -> Question Mark at End](figures/minecraft5.png)
@@ -157,44 +156,44 @@ Here's a quick and dirty graph of repair against `length of the previous turn`, 
 library(ggbeeswarm)
 
 d1 %>%
-  ggplot(aes(prevlength, (as.numeric(repair)-1))) +
-    geom_quasirandom(method = "pseudorandom", 
-                     width = .2,
-                     groupOnX = F, 
-                     alpha = .1, 
-                     varwidth = T) +
-    geom_smooth() +
-    scale_x_continuous(trans = "log10") +
-    scale_y_continuous(breaks = c(0, .25, .5, .75, 1),
-                       labels = c("No", .25, .5, .75, "Yes")) +
-    labs(x = "Length of Previous Turn (characters, log scale)",
-         y = "Question") +
-    theme_minimal()
+  ggplot(aes(length, (as.numeric(repair_next)-1))) +
+  geom_quasirandom(method = "pseudorandom", 
+                   width = .2,
+                   groupOnX = F, 
+                   alpha = .1, 
+                   varwidth = T) +
+  geom_smooth() +
+  scale_x_continuous(trans = "log10") +
+  scale_y_continuous(breaks = c(0, .25, .5, .75, 1),
+                     labels = c("No", .25, .5, .75, "Yes")) +
+  labs(x = "Length of Turn (characters, log scale)",
+       y = "Probability of Next-Turn Repair") +
+  theme_minimal()
 ```
 
 ![Repair X Length of Previous Turn](figures/minecraft1.png)
 
-Looks promising! It's hard to tell just by looking at the data points, but the regression line seems to think that longer previous turns are associated wih more repairs (the line goes the opposite direction at the extremes on the x axis, but I'm not taking that very seriously - the standard error grey area is wide and [the model is stupid](https://youtu.be/QiHKdvAbYII?t=4230)). 
+Looks promising! It's hard to tell just by looking at the data points, but the regression line seems to think that longer previous turns are associated wih more repairs. It is worth noting at this point that there are very few next-turn repairs and very many next-turn non-repairs. This means that when we model this formally [we will have to be careful interpreting the regression coefficients](https://bookdown.org/ajkurz/DBDA_recoded/dichotomous-predicted-variable.html#interpreting-the-regression-coefficients). 
 
 We might do a bit better if, rather than counting the number of characters, we had a measure more closely related to how much information is being conveyed. TF-IDF (Term Frequency * Inverse Document Frequency) fits the bill. The TF-IDF of a word describes how rare it is in the whole corpus vs. how common it is in its own turn. Presumably, rarer words are less predictable and therefore more informative and more confusing. The `sum of TF-IDF scores` of all words in an turn should tell us something about how much new semantic material is included in each turn.
 
 ![Repair X Length of Previous Turn](figures/minecraft2.png)
 
-This looks similar to the first one. Indeed, `Previous turn TF-IDF Sum` and `Previous turn length` are correlated in the corpus at r = .991. Nevertheless, I'm going to stick with TF-IDF Sum because it makes more sense to me as a theoretical predictor.
+This looks similar to the first one. Indeed, `TF-IDF Sum` and `Turn length` are correlated in the corpus at r = 0.956. Nevertheless, I'm going to stick with TF-IDF Sum because it makes more sense to me as a theoretical predictor.
 
 ### Bayesian Modeling
 
-I'll start by simulating reasonable priors. I'll let the slope be positive or negative. About half of Builder turns are repairs, so I'll keep the means at zero. After playing around with the parameters a bit, I settled on this:
+I'll start by simulating reasonable priors. I'll let the slope be positive or negative. Less than 15% of Builder turns are repairs, so I'll lower the intercepts. After playing around with the parameters a bit, I settled on this:
 
 ```r
 # Simulating Reasonable Priors
 d1 %>%
-  group_by(repair) %>%
-  summarise(perc = 100*n()/nrow(.))   # 51.9% of collapsed builder turns are repairs
+  group_by(repair_next) %>%
+  summarise(perc = 100*n()/nrow(.))   # 14.3% of Architect turns are immediately followed by a Builder repair initiation
 
 priors <- 
   tibble(n = 1:50,
-         a = rnorm(50, 0, 1),
+         a = rnorm(50, -1.5, 1),
          b = rnorm(50, 0, 1)) %>% 
   expand(nesting(n, a, b), x = seq(from = -3, to = 3, length.out = 200)) %>% 
   mutate(p = inv_logit_scaled(a+b*x)) %>%
@@ -211,11 +210,11 @@ Let's set up the model.
 library(brms)
 library(tidybayes)
 
-prevtfidf_mod <- brm(
-  repair ~ 1 + prevtfidfsum_log_s,
+tfidf_mod <- brm(
+  repair_next ~ 1 + tfidfsum_log_s,
   data = d1,
   family = bernoulli,
-  prior = c(prior(normal(0, 1), class = Intercept),
+  prior = c(prior(normal(-1.5, 1), class = Intercept),
             prior(normal(0, 1), class = b)),
   sample_prior = "yes")
 ```
@@ -223,21 +222,21 @@ prevtfidf_mod <- brm(
 Here's the model summary:
 
 ```r
-print(prevlength_mod)
+print(tfidf_mod))
 ```
 ```
-## Family: bernoulli 
-##  Links: mu = logit 
-## Formula: repair ~ 1 + prevlength_log_s 
-##   Data: d1 (Number of observations: 3565) 
-##  Draws: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
-##         total post-warmup draws = 4000
-##
+##  Family: bernoulli 
+##   Links: mu = logit 
+## Formula: repair_next ~ 1 + tfidfsum_log_s 
+##    Data: d1 (Number of observations: 11754) 
+##   Draws: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
+##          total post-warmup draws = 4000
+## 
 ## Population-Level Effects: 
-##                 Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
-## Intercept            0.07      0.03     0.01     0.14 1.00     3310     2707
-## prevlength_log_s     0.21      0.03     0.14     0.27 1.00     3393     2670
-##
+##                Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## Intercept         -1.82      0.03    -1.87    -1.77 1.00     3175     2569
+## tfidfsum_log_s     0.26      0.03     0.20     0.31 1.00     2970     2172
+## 
 ## Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
 ## and Tail_ESS are effective sample size measures, and Rhat is the potential
 ## scale reduction factor on split chains (at convergence, Rhat = 1).
@@ -246,39 +245,44 @@ print(prevlength_mod)
 Now I can sample the posteriors and see what the models thinks.
 
 ```r
+library(ggbeeswarm)
+
+d1$tfidfsum_log_s[d1$tfidfsum == min(d1$tfidfsum, na.rm = T)] # -2.87
+d1$tfidfsum_log_s[d1$tfidfsum == max(d1$tfidfsum, na.rm = T)] # 2.51
+
 # Sample Prior and Posterior
-prevtfidf_mod_priors <- as_draws_df(prevtfidf_mod, c("prior_Intercept", "prior_b"))[1:100,] %>%
+
+tfidf_mod_priors <- as_draws_df(tfidf_mod, c("prior_Intercept", "prior_b"))[1:100,] %>%
   as_tibble() %>%
   mutate(n = factor(1:100)) %>%
-  expand(nesting(n, prior_Intercept, prior_b), x_log_s  = seq(from = -2.5, to = 3, length.out = 200)) %>%
+  expand(nesting(n, prior_Intercept, prior_b), x_log_s  = seq(from = -2.9, to = 2.51, length.out = 200)) %>%
   mutate(p = inv_logit_scaled(prior_Intercept+prior_b*x_log_s),
-         x_log = x_log_s * sd(d1$prevtfidfsum_log) + mean(d1$prevtfidfsum_log),
+         x_log = x_log_s * sd(d1$tfidfsum_log) + mean(d1$tfidfsum_log),
          x = exp(x_log))
 
 n_iter <- 50
-prevtfidf_mod_fitted <-
-  fitted(prevtfidf_mod,
-         newdata  = tibble(prevtfidfsum_log_s = seq(from = -2.5, to = 3, length.out = 200)),
+tfidf_mod_fitted <-
+  fitted(tfidf_mod,
+         newdata  = tibble(tfidfsum_log_s = seq(from = -2.9, to = 2.51, length.out = 200)),
          summary  = F,
          nsamples = n_iter) %>% 
   as_tibble() %>%
   mutate(iter = 1:n_iter) %>% 
   pivot_longer(-iter) %>% 
-  mutate(prevtfidf_log_s = rep(seq(from = -2.5, to = 3, length.out = 200), times = n_iter)) %>% 
-  mutate(prevtfidf_log = prevtfidf_log_s * sd(d1$prevtfidfsum_log) + mean(d1$prevtfidfsum_log),
-         prevtfidf = exp(prevtfidf_log_s * sd(d1$prevtfidfsum_log) + mean(d1$prevtfidfsum_log)))
+  mutate(tfidfsum_log_s = rep(seq(from = -2.9, to = 2.51, length.out = 200), times = n_iter)) %>% 
+  mutate(tfidfsum_log = tfidfsum_log_s * sd(d1$tfidfsum_log) + mean(d1$tfidfsum_log),
+         tfidfsum = exp(tfidfsum_log_s * sd(d1$tfidfsum_log) + mean(d1$tfidfsum_log)))
 
-library(ggbeeswarm)
 
-prevtfidf_mod_postpredict <- prevtfidf_mod_fitted %>%
-  ggplot(aes(x = prevtfidf)) +
+tfidf_mod_postpredict <- tfidf_mod_fitted %>%
+  ggplot(aes(x = tfidfsum)) +
     geom_hline(yintercept = .5, color = "red") +
     geom_line(aes(y = value, group = iter), color = "blue", alpha = .1) +
-    geom_line(data = prevtfidf_mod_priors,
+    geom_line(data = tfidf_mod_priors,
               aes(x, p, group = n), color = "black", alpha = .08) + 
     geom_quasirandom(data = d1,
-                     aes(x = prevtfidfsum,
-                         y = as.integer(repair)-1),
+                     aes(x = tfidfsum,
+                         y = as.integer(repair_next)-1),
                      alpha = 1/10,
                      groupOnX = F,
                      width = 1/10,
@@ -288,11 +292,11 @@ prevtfidf_mod_postpredict <- prevtfidf_mod_fitted %>%
     scale_y_continuous(breaks = c(0, .25, .5, .75, 1),
                        labels = c("No", .25, .5, .75, "Yes")) +
     labs(title = "Data with Prior and Posterior Predictions",
-         y = "Question", 
-         x = "Sum TF-IDF of Previous Turn (Log Scale)") +
+         y = "Probability of Next-Turn Repair", 
+         x = "Sum TF-IDF (Log Scale)") +
     theme_minimal()
 
-prevtfidf_mod_postpredict
+tfidf_mod_postpredict
 ```
 
 The faint grey lines are 100 samples from the prior distribution. In blue are 50 samples from the posterior. 
@@ -307,10 +311,10 @@ As described in [Dingemanse et al. (2015)](https://doi.org/10.1371/journal.pone.
 
 ```r
 charssincerepair_mod <- brm(
-  repair ~ 1 + charssincerepair_log_s,
+  repair_next ~ 1 + charssincerepair_log_s,
   data = d1,
   family = bernoulli,
-  prior = c(prior(normal(-1, 1), class = Intercept),
+  prior = c(prior(normal(-1.5, 1), class = Intercept),
             prior(normal(0, 1), class = b)),
   sample_prior = "yes")
 ```
@@ -320,15 +324,15 @@ print(charssincerepair_mod)
 ```
 ##  Family: bernoulli 
 ##   Links: mu = logit 
-## Formula: repair ~ 1 + charssincerepair_log_s 
-##    Data: d1 (Number of observations: 3564) 
+## Formula: repair_next ~ 1 + charssincerepair_log_s 
+##    Data: d1 (Number of observations: 11754) 
 ##   Draws: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
 ##          total post-warmup draws = 4000
 ## 
 ## Population-Level Effects: 
 ##                        Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
-## Intercept                  0.07      0.03     0.01     0.14 1.00     3632     2499
-## charssincerepair_log_s     0.16      0.03     0.09     0.22 1.00     3207     2690
+## Intercept                 -1.81      0.03    -1.87    -1.76 1.00     3148     2719
+## charssincerepair_log_s    -0.24      0.03    -0.29    -0.19 1.00     3209     2570
 ## 
 ## Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
 ## and Tail_ESS are effective sample size measures, and Rhat is the potential
@@ -354,7 +358,7 @@ charssincerepair_mod_fitted <-
   mutate(iter = 1:n_iter) %>% 
   pivot_longer(-iter) %>% 
   mutate(charssincerepair_log_s = rep(seq(from = -4, to = 2.63, length.out = 200), times = n_iter)) %>% 
-  mutate(prevtfidf_log = charssincerepair_log_s * sd(d1$charssincerepair_log) + mean(d1$charssincerepair_log),
+  mutate(charssincerepair_log = charssincerepair_log_s * sd(d1$charssincerepair_log) + mean(d1$charssincerepair_log),
          charssincerepair = exp(charssincerepair_log_s * sd(d1$charssincerepair_log) + mean(d1$charssincerepair_log)))
 
 
@@ -366,7 +370,7 @@ charssincerepair_mod_postpredict <- charssincerepair_mod_fitted %>%
             aes(x, p, group = n), color = "black", alpha = .08) + 
   geom_quasirandom(data = d1,
                    aes(x = charssincerepair,
-                       y = as.integer(repair)-1),
+                       y = as.integer(repair_next)-1),
                    alpha = 1/10,
                    groupOnX = F,
                    width = 1/10,
@@ -376,7 +380,7 @@ charssincerepair_mod_postpredict <- charssincerepair_mod_fitted %>%
   scale_y_continuous(breaks = c(0, .25, .5, .75, 1),
                      labels = c("No", .25, .5, .75, "Yes")) +
   labs(title = "Data with Prior and Posterior Predictions",
-       y = "Question", 
+       y = "Probability of Next-Turn Repair", 
        x = "Total Characters Since Last Repair (Log Scale)") +
   theme_minimal()
 
@@ -385,4 +389,4 @@ charssincerepair_mod_postpredict
 
 ![Characters Since Last Repair Model Data with Prior and Posterior Predictions](figures/minecraft4.png)
 
-Sure Enough!
+Hmmm.
