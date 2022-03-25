@@ -110,7 +110,10 @@ d1 <- convert(minecraftcorpus_tfidf, to = "data.frame") %>%
   mutate(repair = grepl("\\?", text) & role == "B",
          repair_next = NA,
          length = nchar(text),
-         charssincerepair = 0)
+         charssincerepair = 0,
+         partner = if_else(role == "B", 
+                           str_remove_all(str_sub(conversation, -2, -1), "A"),
+                           str_remove_all(str_sub(conversation, 2, 3), "-")))
 
 charssincerepair <- 0L
 
