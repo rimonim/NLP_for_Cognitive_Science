@@ -64,6 +64,17 @@ Before I start exploring predictor variables, I need to figure out how to model 
 I'll draw that more formally as a DAG:
 ```r
 library(ggdag)
+shorten_dag_arrows <- function(tidy_dag, shorten_distance){
+  # Update underlying ggdag object
+  tidy_dag$data <- dplyr::mutate(tidy_dag$data, 
+                                 proportion = shorten_distance/sqrt((xend - x)^2 + (yend - y)^2),
+                                 xend = (1-proportion/2)*(xend - x) + x, 
+                                 yend = (1-proportion/2)*(yend - y) + y,
+                                 xstart = (1-proportion/2)*(x - xend) + xend,
+                                 ystart = (1-proportion/2)*(y-yend) + yend) %>% select(!proportion)
+  return(tidy_dag)
+}
+
 # Length -> TF-IDF Sum -> Probability of Repair -> Question Mark at End
 # Turns since Last Repair -> Probability of Repair -> Question Mark at End
 dag_coords_0 <-
@@ -75,17 +86,18 @@ dagify(U ~ C,
        R ~ U,
        Q ~ R,
        coords = dag_coords_0) %>%
+  tidy_dagitty() %>%
+  shorten_dag_arrows(.25) %>%
   dag_label(labels = c("C" = "", 
                        "U" = str_wrap("Builder Responds", 10), 
                        "R" = "Repair", 
                        "Q" = str_wrap("Question Mark", 10))) %>%
-  ggplot(aes(x = x, y = y, xend = xend-.1, yend = yend)) +
-  geom_dag_point(aes(color = name == "R"),
-                 alpha = 1/2, size = 30, show.legend = F) +
-  geom_dag_text(aes(label = label), color = "black", size = 4) +
+  ggplot(aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_dag_point(aes(color = name == "R"), size = 30, show.legend = F) +
+  geom_dag_text(aes(label = label), size = 4) +
   scale_x_continuous(NULL, breaks = NULL, expand = c(.1, .1)) +
   scale_y_continuous(NULL, breaks = NULL, expand = c(.1, .1)) +
-  geom_dag_edges(aes(x = x + .1)) +
+  geom_dag_edges(aes(x = xstart, y = ystart)) +
   theme_dag()
 ```
 ![? -> Builder Responds -> Probability of Repair -> Question Mark at End](figures/minecraft5.png)
