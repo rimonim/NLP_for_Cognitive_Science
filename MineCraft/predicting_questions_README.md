@@ -102,7 +102,7 @@ dagify(U ~ C,
 ```
 ![? -> Builder Responds -> Probability of Repair -> Question Mark at End](figures/minecraft5.png)
 
-`As yet undiscussed variables` predict `whether or not the Builder will respond to an instruction from the Architect`. `Whether or not the Builder responds` predicts `whether the response will be a repair initiation` (if the Builder doesn't respond there's zero probability of the response being anything). Finally, `the response's status as a repair initiation` influences our proxy variable, `the presence of a question mark`.
+`As yet undiscussed variables` predict `whether or not the Builder will respond to an instruction from the Architect`, which in turn predicts `whether the response will be a repair initiation` (if the Builder doesn't respond there's zero probability of the response being anything), which in turn influences our proxy variable, `the presence of a question mark`.
 
 All of this means that my inital stategy would probably wash out any effect of predictors on repair, since [we would already be stratifying by whether the Builder responds](https://youtu.be/YrwL6t0kW2I?t=864). I think the simplest way to solve this problem is to use Architect turns as cases and predict whether or not the next turn will be a Builder repair. Sometimes the next turn will be another Architect turn (when Builder did not respond), and sometimes it will be a non-repair Builder turn.
 
