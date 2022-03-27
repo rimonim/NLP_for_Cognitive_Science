@@ -511,4 +511,6 @@ print(charssincerepair_bysubj_mod)
 
 Bingo. The population-level effect of characters since repair is now slightly positive! Let's visualize that:
 
-![Data with Multilevel Model Estimates](figures/minecraft6.png)
+![Data with Multilevel Model Estimates](figures/minecraft7.png)
+
+The blue line is the model's estimate of the average effect of characters since last repair on repair probability within groups, with its 95% confidence interval. The grey lines are estimates for each pair of Builder and Architect appearing in the corpus.
