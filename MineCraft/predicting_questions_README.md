@@ -404,4 +404,57 @@ charssincerepair_mod_postpredict
 
 ![Characters Since Last Repair Model Data with Prior and Posterior Predictions](figures/minecraft4.png)
 
-Hmmm.
+Hmmm. The model thinks that repairs get _less_ likely as time goes on after the last repair. I have a hard time believing that. Where did I go wrong?
+
+Answer: [I didn't use a multilevel model](https://elevanth.org/blog/2017/08/24/multilevel-regression-as-default/). 
+
+What I think is happening is this: most of the variation in likelihood of next-turn repair is between participants. As it happens, pairs of participants in which the Builder is more likely to initiate next-turn repair are also more likely to have short turns and therefore fewer total characters since the last repair. Or something like that.
+
+Before I get into complicated modeling to test this directly, I'll drive home the main point with a simple, intercept-only multilevel model.
+
+```r
+bysubj_mod <- 
+  brm(data = d1, 
+      family = bernoulli,
+      repair_next ~ 1 + (1 | partner),
+      prior = c(prior(normal(-1.5, 1), class = Intercept), 
+                prior(exponential(1), class = sd)),
+      iter = 5000, chains = 4, cores = 2,
+      sample_prior = "yes")
+
+plot(bysubj_mod)
+print(bysubj_mod)
+
+bysubj_mod_post <- as_draws(bysubj_mod)
+
+bysubj_mod_post_mdn <- 
+  coef(bysubj_mod, robust = T)$partner[, , ] %>% 
+  data.frame() %>% 
+  mutate(post_mdn = inv_logit_scaled(Estimate),
+         post_97.5 = inv_logit_scaled(Q97.5),
+         post_2.5 = inv_logit_scaled(Q2.5),
+         partner = unique(d1$partner)) %>%
+  right_join(d1) %>%
+  group_by(Estimate, Est.Error, post_2.5, post_97.5, post_mdn, partner) %>%
+  summarise(prop_repair_next = sum(repair_next == T)/n())
+
+View(bysubj_mod_post)
+
+bysubj_mod_post_mdn %>%
+  ggplot(aes(partner)) +
+    geom_hline(yintercept = inv_logit_scaled(median(bysubj_mod_post$`1`$b_Intercept)), 
+               linetype = 2, color = "orange2") +
+    geom_point(aes(y = post_mdn, color = "Model Intercepts"), size = 3) +
+    geom_errorbar(aes(ymin = post_2.5, ymax = post_97.5, color = "Model Intercepts")) +
+    geom_point(aes(y = prop_repair_next, color = "Empirical Proportions"), size = 3, shape = 1) +
+    labs(title = "Individual Differences in Repair Behavior",
+         subtitle = str_wrap("The dashed line represents the model average intercept. 
+                             Error bars represent 95% confidence interval.", 60),
+         x = "Builder ID",
+         y = "Probability of Next-Turn Repair") +
+    scale_color_manual(name = element_blank(), 
+                       values = c("black", "orange2")) +
+    theme_minimal()
+```
+
+![Individual Differences in Repair Behavior](figures/minecraft6.png)
