@@ -510,3 +510,5 @@ print(charssincerepair_bysubj_mod)
 ```
 
 Bingo. The population-level effect of characters since repair is now slightly positive! Let's visualize that:
+
+![Data with Multilevel Model Estimates](figures/minecraft6.png)
