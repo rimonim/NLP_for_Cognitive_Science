@@ -458,3 +458,55 @@ bysubj_mod_post_mdn %>%
 ```
 
 ![Individual Differences in Repair Behavior](figures/minecraft6.png)
+
+As expected, different Builders have vastly different likelihoods of initiating next-turn repair. 
+
+Now for the monster model. I just showed that different Builders have different likelihoods of initiating next-turn repair, but the same is probably tru for different Architects. An Architect who likes to type a lot of turns in a row will lower the probability of any given next-turn being a repair, just as a Builder who initiates repair a lot will raise the probability. So I'm clustering by both Architect and Builder. I'm also allowing both intercept and slope to vary, and telling the model to estimate the correlation between them. That way we can see whether I was right about what was causing the slope to be positive in the first model. Really, I should also be allowing for an [interaction between Architect and Builder](http://davidakenny.net/kkc/kkc.htm), and accounting for the fact that Builder 1 is the same person as Architect 1, but that's getting too complicated for right now. I think this cross-classification will be enough to reveal the confound from before.
+
+```r
+charssincerepair_bysubj_mod <- 
+  brm(data = d1, 
+      family = bernoulli,
+      repair_next ~ 1 + charssincerepair_log_s + (1 + charssincerepair_log_s | partner) + (1 + charssincerepair_log_s | participant),
+      prior = c(prior(normal(-1.5, 1), class = Intercept), 
+                prior(normal(0, 1), class = b),
+                prior(exponential(1), class = sd, group = participant),
+                prior(exponential(1), class = sd, group = partner),
+                prior(lkj(2), class = cor, group = participant),
+                prior(lkj(2), class = cor, group = partner)),
+      iter = 5000, chains = 4, cores = 2)
+
+print(charssincerepair_bysubj_mod)
+```
+```
+##  Family: bernoulli 
+##   Links: mu = logit 
+## Formula: repair_next ~ 1 + charssincerepair_log_s + (1 + charssincerepair_log_s | partner) + (1 + charssincerepair_log_s | participant) 
+##    Data: d1 (Number of observations: 11754) 
+##   Draws: 4 chains, each with iter = 5000; warmup = 2500; thin = 1;
+##          total post-warmup draws = 10000
+## 
+## Group-Level Effects: 
+## ~participant (Number of levels: 35) 
+##                                       Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## sd(Intercept)                             0.47      0.10     0.29     0.70 1.00     2468     4795
+## sd(charssincerepair_log_s)                0.06      0.04     0.00     0.16 1.00     3271     4605
+## cor(Intercept,charssincerepair_log_s)     0.16      0.43    -0.72     0.87 1.00     9950     7255
+## 
+## ~partner (Number of levels: 31) 
+##                                       Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## sd(Intercept)                             0.59      0.11     0.41     0.83 1.00     3370     5632
+## sd(charssincerepair_log_s)                0.20      0.06     0.10     0.32 1.00     3199     3643
+## cor(Intercept,charssincerepair_log_s)     0.24      0.25    -0.28     0.69 1.00     6003     6974
+## 
+## Population-Level Effects: 
+##                        Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## Intercept                 -1.86      0.14    -2.13    -1.59 1.00     3152     4922
+## charssincerepair_log_s     0.02      0.05    -0.09     0.13 1.00     6387     7099
+## 
+## Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
+## and Tail_ESS are effective sample size measures, and Rhat is the potential
+## scale reduction factor on split chains (at convergence, Rhat = 1).
+```
+
+Bingo. The population-level effect of characters since repair is now slightly positive! Let's visualize that:
