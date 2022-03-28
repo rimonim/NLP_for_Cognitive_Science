@@ -461,19 +461,17 @@ bysubj_mod_post_mdn %>%
 
 As expected, different Builders have vastly different likelihoods of initiating next-turn repair. 
 
-Now for the monster model. I just showed that different Builders have different likelihoods of initiating next-turn repair, but the same is probably tru for different Architects. An Architect who likes to type a lot of turns in a row will lower the probability of any given next-turn being a repair, just as a Builder who initiates repair a lot will raise the probability. So I'm clustering by both Architect and Builder. I'm also allowing both intercept and slope to vary, and telling the model to estimate the correlation between them. That way we can see whether I was right about what was causing the slope to be positive in the first model. Really, I should also be allowing for an [interaction between Architect and Builder](http://davidakenny.net/kkc/kkc.htm), and accounting for the fact that Builder 1 is the same person as Architect 1, but that's getting too complicated for right now. I think this cross-classification will be enough to reveal the confound from before.
+Now for the monster model. I just showed that different Builders have different likelihoods of initiating next-turn repair, but the same is probably true for different Architects. An Architect who likes to type a lot of turns in a row will lower the probability of any given next-turn being a repair, just as a Builder who initiates repair a lot will raise the probability. Clustering by both Architect and Builder [gets complicated](http://davidakenny.net/kkc/kkc.htm), and for now I'm only interested in group-level effects, so I'm just going to cluster by conversation and leave the model agnostic about whether it's the Builder, the Architect, or some interaction between them that's causing any difference. I'm also allowing both intercept and slope to vary, and telling the model to estimate the correlation between them. 
 
 ```r
 charssincerepair_bysubj_mod <- 
   brm(data = d1, 
       family = bernoulli,
-      repair_next ~ 1 + charssincerepair_log_s + (1 + charssincerepair_log_s | partner) + (1 + charssincerepair_log_s | participant),
+      repair_next ~ 1 + charssincerepair_log_s + (1 + charssincerepair_log_s | conversation),
       prior = c(prior(normal(-1.5, 1), class = Intercept), 
                 prior(normal(0, 1), class = b),
-                prior(exponential(1), class = sd, group = participant),
-                prior(exponential(1), class = sd, group = partner),
-                prior(lkj(2), class = cor, group = participant),
-                prior(lkj(2), class = cor, group = partner)),
+                prior(exponential(1), class = sd),
+                prior(lkj(2), class = cor)),
       iter = 5000, chains = 4, cores = 2)
 
 print(charssincerepair_bysubj_mod)
@@ -481,28 +479,26 @@ print(charssincerepair_bysubj_mod)
 ```
 ##  Family: bernoulli 
 ##   Links: mu = logit 
-## Formula: repair_next ~ 1 + charssincerepair_log_s + (1 + charssincerepair_log_s | partner) + (1 + charssincerepair_log_s | participant) 
+## Formula: repair_next ~ 1 + charssincerepair_log_s + (1 + charssincerepair_log_s | conversation) 
 ##    Data: d1 (Number of observations: 11754) 
 ##   Draws: 4 chains, each with iter = 5000; warmup = 2500; thin = 1;
 ##          total post-warmup draws = 10000
 ## 
 ## Group-Level Effects: 
-## ~participant (Number of levels: 35) 
-##                                       Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
-## sd(Intercept)                             0.47      0.10     0.29     0.70 1.00     2468     4795
-## sd(charssincerepair_log_s)                0.06      0.04     0.00     0.16 1.00     3271     4605
-## cor(Intercept,charssincerepair_log_s)     0.16      0.43    -0.72     0.87 1.00     9950     7255
-## 
-## ~partner (Number of levels: 31) 
-##                                       Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
-## sd(Intercept)                             0.59      0.11     0.41     0.83 1.00     3370     5632
-## sd(charssincerepair_log_s)                0.20      0.06     0.10     0.32 1.00     3199     3643
-## cor(Intercept,charssincerepair_log_s)     0.24      0.25    -0.28     0.69 1.00     6003     6974
+## ~conversation (Number of levels: 64) 
+##                                       Estimate Est.Error l-95% CI u-95% CI Rhat
+## sd(Intercept)                             0.76      0.08     0.62     0.94 1.00
+## sd(charssincerepair_log_s)                0.13      0.06     0.01     0.25 1.00
+## cor(Intercept,charssincerepair_log_s)     0.29      0.28    -0.33     0.79 1.00
+##                                       Bulk_ESS Tail_ESS
+## sd(Intercept)                             2003     3424
+## sd(charssincerepair_log_s)                1927     2051
+## cor(Intercept,charssincerepair_log_s)     7747     4847
 ## 
 ## Population-Level Effects: 
 ##                        Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
-## Intercept                 -1.86      0.14    -2.13    -1.59 1.00     3152     4922
-## charssincerepair_log_s     0.02      0.05    -0.09     0.13 1.00     6387     7099
+## Intercept                 -1.87      0.10    -2.08    -1.68 1.00     1365     2679
+## charssincerepair_log_s     0.02      0.04    -0.05     0.09 1.00     7615     7229
 ## 
 ## Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
 ## and Tail_ESS are effective sample size measures, and Rhat is the potential
@@ -513,4 +509,4 @@ Bingo. The population-level effect of characters since repair is now slightly po
 
 ![Data with Multilevel Model Estimates](figures/minecraft7.png)
 
-The blue line is the model's estimate of the average effect of characters since last repair on repair probability within groups, with its 95% confidence interval. The grey lines are estimates for each pair of Builder and Architect appearing in the corpus.
+The blue line is the model's estimate of the average effect of characters since last repair on repair probability within groups, with its 95% confidence interval. The grey lines are estimates for each conversation.
