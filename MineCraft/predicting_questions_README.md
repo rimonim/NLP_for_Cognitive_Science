@@ -318,7 +318,7 @@ The faint grey lines are 100 samples from the prior distribution. In blue are 50
 
 ![TF-IDF Model Data with Prior and Posterior Predictions](figures/minecraft3.png)
 
-The posterior predictions look like a straight line on the logarithmic scale - for very short, simple instructions from the Architect, the Builder's response is most likely not to be a repair. As total TF-IDF goes up, the probability of repair does too, at first rapidly, them more slowly.
+The posterior predictions look almost like a straight line on the logarithmic scale - for very short, simple instructions from the Architect, the Builder's response is most likely not to be a repair. As total TF-IDF goes up, the probability of repair does too, at first rapidly, then more slowly.
 
 ## Time Since Last Repair
 
@@ -509,4 +509,4 @@ Bingo. The population-level effect of characters since repair is now slightly po
 
 ![Data with Multilevel Model Estimates](figures/minecraft7.png)
 
-The blue line is the model's estimate of the average effect of characters since last repair on repair probability within groups, with its 95% confidence interval. The grey lines are estimates for each conversation.
+The blue line is the model's estimate of the average effect of characters since last repair on repair probability within groups, with its 95% confidence interval. The grey lines are estimates for each conversation. This time I'm convinced - the effect of content elapsed since the last repair is small if it exists at all. The graph I linked to above from Dingemanse et al. (2015) shows the probability that repair will have occured, which of course rapidly approaches 1 as time goes on. The probability that _any given turn_ will be a repair initiation doesn't seem to change much, at least in the Minecraft corpus. 
