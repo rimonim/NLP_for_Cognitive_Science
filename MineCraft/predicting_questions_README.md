@@ -510,3 +510,51 @@ Bingo. The population-level effect of characters since repair is now slightly po
 ![Data with Multilevel Model Estimates](figures/minecraft7.png)
 
 The blue line is the model's estimate of the average effect of characters since last repair on repair probability within groups, with its 95% confidence interval. The grey lines are estimates for each conversation. This time I'm convinced - the effect of content elapsed since the last repair is small if it exists at all. [The graph I linked to above from Dingemanse et al. (2015)](https://doi.org/10.1371/journal.pone.0136100.g002) shows the probability that repair will have occured, which of course rapidly approaches 1 as time goes on. The probability that _any given turn_ will be a repair initiation doesn't seem to change much, at least in the Minecraft corpus. 
+
+All this makes me want to re-do my analysis of TF-IDF Sum as a multilevel model. Here's what that looks like: 
+
+```r
+tfidfsum_bysubj_mod <- 
+  brm(data = d1, 
+      family = bernoulli,
+      repair_next ~ 1 + tfidfsum_log_s + (1 + tfidfsum_log_s | conversation),
+      prior = c(prior(normal(-1.5, 1), class = Intercept), 
+                prior(normal(0, 1), class = b),
+                prior(exponential(1), class = sd),
+                prior(lkj(2), class = cor)),
+      iter = 5000, chains = 4, cores = 2)
+      
+print(tfidfsum_bysubj_mod)
+```
+```
+##  Family: bernoulli 
+##   Links: mu = logit 
+## Formula: repair_next ~ 1 + tfidfsum_log_s + (1 + tfidfsum_log_s | conversation) 
+##    Data: d1 (Number of observations: 11754) 
+##   Draws: 4 chains, each with iter = 5000; warmup = 2500; thin = 1;
+##          total post-warmup draws = 10000
+## 
+## Group-Level Effects: 
+## ~conversation (Number of levels: 64) 
+##                               Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS
+## sd(Intercept)                     0.76      0.08     0.62     0.93 1.00     1843
+## sd(tfidfsum_log_s)                0.12      0.06     0.01     0.23 1.00     2173
+## cor(Intercept,tfidfsum_log_s)    -0.15      0.31    -0.72     0.50 1.00     9390
+##                               Tail_ESS
+## sd(Intercept)                     3034
+## sd(tfidfsum_log_s)                3267
+## cor(Intercept,tfidfsum_log_s)     5410
+## 
+## Population-Level Effects: 
+##                Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## Intercept         -1.92      0.10    -2.11    -1.72 1.00     1431     2332
+## tfidfsum_log_s     0.27      0.04     0.20     0.34 1.00     8006     6499
+## 
+## Draws were sampled using sampling(NUTS). For each parameter, Bulk_ESS
+## and Tail_ESS are effective sample size measures, and Rhat is the potential
+## scale reduction factor on split chains (at convergence, Rhat = 1).
+```
+
+Didn't change much here, but it does look like the population-level effect is slightly higher than with the fixed-effects model. Here's what the new model looks like as a graph:
+
+![Data with Multilevel Model Estimates](figures/minecraft8.png)
