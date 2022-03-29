@@ -555,7 +555,7 @@ print(tfidfsum_bysubj_mod)
 ## scale reduction factor on split chains (at convergence, Rhat = 1).
 ```
 
-Didn't change much here, but it does look like the population-level effect is slightly higher than with the fixed-effects model. Interestingly enough, it looks like the intercept and beta are slightly negatively correlated. That means that pairs who initiate repair more in general also show less effect of utterance length (or TF-IDF sum, to be exact) on their rates. It seems possible to me that, in highly informational contexts like the Minecraft collaborative building task, some people have a top-down push to just initiate repair as much as possible, regardless of whether or not there's an obvious need for it.
+Didn't change much here, but it does look like the population-level effect is slightly higher than with the fixed-effects model. Interestingly enough, the model estimates that the intercept and beta are slightly negatively correlated. That means that pairs who initiate repair more in general also show less effect of utterance length (or TF-IDF sum, to be exact) on their rates. It seems possible to me that, in highly informational contexts like the Minecraft collaborative building task, some people have a top-down push to just initiate repair as much as possible, regardless of whether or not there's an obvious need for it. All of this is pretty speculative though, since the estimated error on the correlation parameter is enormous.
 
 Here's what the new model looks like as a graph:
 
