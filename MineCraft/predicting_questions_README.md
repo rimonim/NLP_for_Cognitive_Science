@@ -1,6 +1,6 @@
 # Predicting Questions in Dialogue
 
-A sample dialogue from the Minecraft Corpus:
+A sample dialogue from the [Minecraft Corpus](https://github.com/rimonim/nlp_for_cognitive_science/tree/main/MineCraft):
  
 > _(1) **Architect:** start with a stack of 5 purple blocks in the middle_
 > 
